@@ -1,19 +1,15 @@
-import random
+import pandas as pd
 
-users = ["Utkarsh", "Ayush", "Muskan", "Sujay"]
 
-random.seed(42)
-
-def generate_transactions(df, amount_column, limit=10):
-
+def generate_transactions(df: pd.DataFrame, amount_column: str = "amount") -> list:
+    """
+    Convert a cleaned DataFrame into (payer, receiver, amount) tuples.
+    """
     transactions = []
-
-    for amount in df[amount_column].head(limit):
-
-        payer = random.choice(users)
-        receiver = random.choice(users)
-
-        if payer != receiver:
+    for _, row in df.iterrows():
+        payer    = row["payer"]
+        receiver = row["receiver"]
+        amount   = float(row[amount_column])
+        if payer != receiver and amount > 0:
             transactions.append((payer, receiver, amount))
-
     return transactions

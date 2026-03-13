@@ -1,11 +1,63 @@
-# Python cache
+# -------------------------
+# Python
+# -------------------------
 __pycache__/
+*.py[cod]
+*.pyo
+*.pyd
 *.pyc
+*.so
 
-# Python environments
+# Virtual environments
 venv/
 env/
+.venv/
 
-# System files
+# Python build files
+build/
+dist/
+*.egg-info/
+
+# -------------------------
+# Node.js
+# -------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# -------------------------
+# Environment variables
+# -------------------------
+.env
+.env.local
+.env.*.local
+
+# -------------------------
+# Logs
+# -------------------------
+logs/
+*.log
+
+# -------------------------
+# OS files
+# -------------------------
 .DS_Store
 Thumbs.db
+
+# -------------------------
+# IDE files
+# -------------------------
+.vscode/
+.idea/
+
+# -------------------------
+# Dataset / temporary data
+# -------------------------
+*.csv
+*.xls
+*.xlsx
+
+# If you want to keep a sample dataset:
+!sample*.csv

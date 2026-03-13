@@ -17,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/KishuSInha/Basic-Feature-/issues"
   },
-  "homepage": "https://github.com/KishuSInha/Basic-Feature-#readme"
+  "homepage": "https://github.com/KishuSInha/Basic-Feature-#readme",
+  "devDependencies": {
+    "hardhat": "^3.1.12"
+  }
 }
