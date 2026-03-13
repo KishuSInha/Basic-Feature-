@@ -29,8 +29,32 @@ const DesktopIcon = ({ id, icon, label, onClick }) => (
   </motion.div>
 );
 
-const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize, isMinimized }) => {
+// Custom hook for responsive detection
+function useWindowSize() {
+  const [windowSize, setWindowSize] = React.useState({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  });
+
+  React.useEffect(() => {
+    function handleResize() {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight,
+      });
+    }
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  return windowSize;
+}
+
+const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize, isMinimized, isMobile }) => {
   const [isMaximized, setIsMaximized] = useState(false);
+
+  // On mobile, windows are always effectively maximized
+  const currentMaximized = isMobile || isMaximized;
 
   return (
     <motion.div
@@ -43,7 +67,7 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
         x: -400, 
         y: 400,
         transition: { duration: 0.4 } 
-      } : isMaximized ? {
+      } : currentMaximized ? {
         opacity: 1, 
         scale: 1, 
         x: 0, 
@@ -68,7 +92,7 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
         position: 'absolute',
         background: '#0a0a12',
         border: '1px solid #ff2020',
-        borderRadius: isMaximized ? 0 : '4px 4px 0 0',
+        borderRadius: currentMaximized ? 0 : '4px 4px 0 0',
         zIndex,
         display: isMinimized ? 'none' : 'flex',
         flexDirection: 'column',
@@ -79,21 +103,25 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
     >
       {/* Title Bar */}
       <div style={{
-        height: 32, background: 'linear-gradient(to bottom, #8b0000 0%, #ff2020 100%)',
+        height: isMobile ? 40 : 32, background: 'linear-gradient(to bottom, #8b0000 0%, #ff2020 100%)',
         display: 'flex', alignItems: 'center', padding: '0 12px', color: '#fff', flexShrink: 0
       }}>
         <span style={{ fontSize: 14, marginRight: 10 }}>{icon}</span>
-        <span style={{ fontSize: 11, fontWeight: 900, fontFamily: 'var(--orb)', letterSpacing: '1px', textTransform: 'uppercase', flex: 1 }}>{title}</span>
+        <span style={{ fontSize: isMobile ? 10 : 11, fontWeight: 900, fontFamily: 'var(--orb)', letterSpacing: '1px', textTransform: 'uppercase', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{title}</span>
         
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={(e) => { e.stopPropagation(); onMinimize(); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 14, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>_</button>
-          <button onClick={(e) => { e.stopPropagation(); setIsMaximized(!isMaximized); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 10, display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>□</button>
-          <button onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ width: 22, height: 22, background: '#ff2020', border: '1px solid #fff', borderRadius: 2, color: '#fff', fontSize: 12, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>✕</button>
+          {!isMobile && (
+            <>
+              <button onClick={(e) => { e.stopPropagation(); onMinimize(); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 14, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>_</button>
+              <button onClick={(e) => { e.stopPropagation(); setIsMaximized(!isMaximized); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 10, display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>□</button>
+            </>
+          )}
+          <button onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ width: isMobile ? 28 : 22, height: isMobile ? 28 : 22, background: '#ff2020', border: '1px solid #fff', borderRadius: 2, color: '#fff', fontSize: 12, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>✕</button>
         </div>
       </div>
 
       {/* Content Area */}
-      <div style={{ flex: 1, background: '#050508', padding: 1, overflow: 'hidden', position: 'relative' }}>
+      <div style={{ flex: 1, background: '#050508', padding: 1, overflow: 'auto', position: 'relative' }}>
         {children}
       </div>
     </motion.div>
@@ -101,6 +129,9 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
 };
 
 export default function Dashboard({ userRole }) {
+  const { width } = useWindowSize();
+  const isMobile = width < 768;
+
   const [resolvedData, setResolvedData] = useState(null);
   const [openWins, setOpenWins] = useState([]);
   const [minimizedWins, setMinimizedWins] = useState([]);
@@ -179,7 +210,14 @@ export default function Dashboard({ userRole }) {
       <div className="crt-scanlines" style={{ opacity: 0.15 }} />
 
       {/* Desktop Icons */}
-      <div style={{ position: 'absolute', top: 30, left: 30, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ 
+        position: 'absolute', 
+        top: isMobile ? 20 : 30, 
+        left: isMobile ? 20 : 30, 
+        display: 'grid', 
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : '1fr', 
+        gap: isMobile ? 12 : 20 
+      }}>
         {winDefs.map(def => (
           <DesktopIcon 
             key={def.id} 
@@ -207,6 +245,7 @@ export default function Dashboard({ userRole }) {
                 onClose={() => closeWin(id)}
                 onMinimize={() => minimizeWin(id)}
                 isMinimized={minimizedWins.includes(id)}
+                isMobile={isMobile}
               >
                 {def.content()}
               </XPWin>
