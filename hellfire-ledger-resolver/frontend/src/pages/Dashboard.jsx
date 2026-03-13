@@ -6,6 +6,8 @@ import CSVUpload      from '../components/CSVUpload';
 import SettlementList from '../components/SettlementList';
 import AdvancedInteractiveGraph from '../components/AdvancedInteractiveGraph';
 import LedgerVision from '../components/LedgerVision';
+import AdminControl from '../components/AdminControl';
+import TokenSend    from '../components/TokenSend';
 import XPTaskbar      from '../components/XPTaskbar';
 
 const DesktopIcon = ({ id, icon, label, onClick }) => (
@@ -98,7 +100,7 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
   );
 };
 
-export default function Dashboard() {
+export default function Dashboard({ userRole }) {
   const [resolvedData, setResolvedData] = useState(null);
   const [openWins, setOpenWins] = useState([]);
   const [minimizedWins, setMinimizedWins] = useState([]);
@@ -108,7 +110,7 @@ export default function Dashboard() {
   const [terminalLogs, setTerminalLogs] = useState([
     { id: 1, text: ">>> HNL-OS KERNEL v4.3 BOOTED.", type: "system" },
     { id: 2, text: ">>> SECURE GATEWAY ENCRYPTED. [SHA-256]", type: "system" },
-    { id: 3, text: ">>> AUTHENTICATED: AGENT_WHEELER", type: "success" },
+    { id: 3, text: `>>> AUTHENTICATED: ${userRole === 'admin' ? 'AGENT_MUNSON' : 'AGENT_WHEELER'} [${userRole?.toUpperCase()}]`, type: "success" },
   ]);
 
   const addTerminalLog = (text, type = 'info') => {
@@ -121,12 +123,16 @@ export default function Dashboard() {
   const handleUploadSuccess = (data) => {
     setResolvedData(data);
     addTerminalLog("UPLINK SUCCESSFUL. DECRYPTING DATASTREAM...", "success");
-    // Flow-wise execution: Open Ledger data first, then optimization results
     setTimeout(() => openWin('ledger'), 500);
     setTimeout(() => openWin('settle'), 1500);
   };
 
-  const winDefs = [
+  // Define window configurations based on role
+  const winDefs = userRole === 'admin' ? [
+    { id: 'mint',    icon: '🪙', title: 'Token Minting',  content: () => <AdminControl userRole={userRole} addLog={addTerminalLog} /> },
+    { id: 'send',    icon: '📤', title: 'Token Sending',  content: () => <TokenSend addLog={addTerminalLog} /> },
+    { id: 'cmd',     icon: '💻', title: 'Terminal',   content: () => <TerminalConsole logs={terminalLogs} /> },
+  ] : [
     { id: 'upload',   icon: '📂', title: 'Ledger Uplink', content: () => <CSVUpload onUploadSuccess={handleUploadSuccess} addLog={addTerminalLog} /> },
     { id: 'ledger',   icon: '📜', title: 'Ledger Intelligence', content: () => <LedgerVision ledger={resolvedData?.ledger || []} /> },
     { id: 'analytics',icon: '📊', title: 'Debt Analytics', content: () => <div style={{height:'100%'}}><AdvancedInteractiveGraph externalData={resolvedData} /></div> },
@@ -169,7 +175,6 @@ export default function Dashboard() {
       backgroundSize: 'cover', backgroundPosition: 'center',
       overflow: 'hidden', position: 'relative' 
     }}>
-      {/* Dimensional Noise Overlay */}
       <div className="signal-noise" style={{ opacity: 0.08 }} />
       <div className="crt-scanlines" style={{ opacity: 0.15 }} />
 
@@ -190,6 +195,7 @@ export default function Dashboard() {
         <AnimatePresence>
           {openWins.map(id => {
             const def = winDefs.find(d => d.id === id);
+            if (!def) return null;
             return (
               <XPWin
                 key={id}

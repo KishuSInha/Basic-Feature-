@@ -20,11 +20,13 @@ const PAGE = {
 
 export default function App() {
   const [page, setPage] = useState(PAGE.LAND);
+  const [userRole, setUserRole] = useState(null); // 'admin' or 'agent'
 
   const startBoot         = () => { window.scrollTo(0, 0); setPage(PAGE.XP_LOADING); };
   const onLoadingComplete = () => setPage(PAGE.XP_LOGIN);
-  const onLogin           = () => setPage(PAGE.XP_WELCOME);
+  const onLogin           = (role) => { setUserRole(role); setPage(PAGE.XP_WELCOME); };
   const onWelcomeComplete = () => setPage(PAGE.DASH);
+  const onRestart         = () => { setUserRole(null); setPage(PAGE.LAND); };
 
   return (
     <>
@@ -43,18 +45,18 @@ export default function App() {
         )}
 
         {page === PAGE.XP_LOGIN && (
-          <WindowsLogin onLogin={onLogin} />
+          <WindowsLogin onLogin={onLogin} onRestart={onRestart} />
         )}
 
         {page === PAGE.XP_WELCOME && (
-          <WindowsWelcome onComplete={onWelcomeComplete} />
+          <WindowsWelcome role={userRole} onComplete={onWelcomeComplete} />
         )}
 
         {page === PAGE.DASH && (
           <motion.div key="dash"
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}>
-            <Dashboard />
+            <Dashboard userRole={userRole} />
           </motion.div>
         )}
       </AnimatePresence>
