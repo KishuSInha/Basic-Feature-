@@ -1,160 +1,109 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React from 'react';
+import { motion } from 'framer-motion';
 
-/**
- * AdvancedInteractiveGraph (HNL Protocol Layer)
- * Implements the offset-path / clip-path reveal technique.
- * Performance: Uses raw state for mouse tracking within local component.
- */
+const AdvancedInteractiveGraph = ({ externalData = null }) => {
+  if (!externalData) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center h-full w-full opacity-30 italic font-share-tech text-[10px] tracking-widest text-phosphor bg-[#03030a]">
+         <div className="w-8 h-8 border border-dashed border-phosphor/50 mb-4 animate-spin" />
+         AWAITING LEDGER UPLINK...
+      </div>
+    );
+  }
 
-const AdvancedInteractiveGraph = () => {
-  const containerRef = useRef(null);
-  const [percent, setPercent] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
-
-  // Sample Path for total pooled debt / settlement progress
-  const pathDef = "M 0 160 C 40 160, 60 40, 100 80 C 140 120, 160 200, 200 140 C 240 80, 280 40, 320 60 C 360 80, 380 120, 420 100 L 500 20";
-  
-  const handleMouseMove = (e) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const p = Math.max(0, Math.min(100, (x / rect.width) * 100));
-    setPercent(p);
-  };
+  const { node_count, total_volume, settled_volume, top_debtors, top_creditors } = externalData.visuals || {};
+  const savings = total_volume - settled_volume;
+  const savingsPct = total_volume > 0 ? (savings / total_volume * 100) : 0;
 
   return (
-    <div 
-      ref={containerRef}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovering(true)}
-      onMouseLeave={() => setIsHovering(false)}
-      style={{
-        width: '100%',
-        height: '100%',
-        position: 'relative',
-        background: '#03030a',
-        overflow: 'hidden',
-        cursor: 'none'
-      }}
-    >
-      <style>{`
-        .graph-label {
-          position: absolute;
-          font-family: var(--share);
-          font-size: 10px;
-          letter-spacing: 0.1em;
-          color: rgba(179,255,179,0.3);
-          pointer-events: none;
-        }
-        .graph-dot {
-          width: 10px;
-          height: 10px;
-          background: #fff;
-          border-radius: 50%;
-          border: 2px solid var(--phosphor);
-          position: absolute;
-          top: 0;
-          left: 0;
-          box-shadow: 0 0 10px var(--phosphor);
-          z-index: 20;
-          pointer-events: none;
-          transition: transform 0.1s ease-out;
-        }
-        .v-line {
-          width: 1px;
-          height: 100%;
-          background: linear-gradient(to bottom, transparent, rgba(179,255,179,0.4), transparent);
-          position: absolute;
-          top: 0;
-          z-index: 10;
-          pointer-events: none;
-        }
-        @keyframes flow {
-           0% { stroke-dashoffset: 1000; }
-           100% { stroke-dashoffset: 0; }
-        }
-      `}</style>
+    <div className="h-full w-full p-6 flex flex-col gap-6 bg-[#03030a] custom-scrollbar overflow-y-auto relative">
+      <div className="signal-noise opacity-10 pointer-events-none absolute inset-0" />
+      
+      {/* Header Stats */}
+      <div className="grid grid-cols-4 gap-4 z-10">
+        <StatBox title="NETWORK NODES" value={node_count || 0} unit="ENTITIES" color="var(--phosphor)" />
+        <StatBox title="ORIGINAL VOLUME" value={(total_volume || 0).toFixed(2)} unit="HFG" color="var(--phosphor)" />
+        <StatBox title="OPTIMIZED VOLUME" value={(settled_volume || 0).toFixed(2)} unit="HFG" color="var(--cyan)" />
+        <StatBox title="NETWORK SAVINGS" value={savingsPct.toFixed(1)} unit="%" color="var(--red)" highlight />
+      </div>
 
-      {/* Background Grid */}
-      <svg style={{ position:'absolute', inset:0, width:'100%', height:'100%', opacity:0.05 }}>
-        <pattern id="hnl-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-          <path d="M 40 0 L 0 0 0 40" fill="none" stroke="var(--phosphor)" strokeWidth="0.5" />
-        </pattern>
-        <rect width="100%" height="100%" fill="url(#hnl-grid)" />
-      </svg>
-
-      {/* Indicators */}
-      {isHovering && (
-        <>
-          <div 
-            className="v-line" 
-            style={{ left: `${percent}%` }}
-          />
-          <div 
-            className="graph-dot"
-            style={{
-              offsetPath: `path("${pathDef}")`,
-              offsetDistance: `${percent}%`,
-            }}
-          />
-          {/* Tooltip Label - Top Right fixed */}
-          <div style={{ position: 'absolute', top: 20, right: 20, textAlign: 'right', pointerEvents: 'none' }}>
-            <div style={{ fontFamily: 'var(--orb)', fontSize: 10, color: 'var(--phosphor)', opacity: 0.6 }}>TOTAL ASSETS</div>
-            <div style={{ fontFamily: 'var(--vt)', fontSize: 24, color: '#fff' }}>
-              {(percent * 42.5).toFixed(2)} <span style={{ fontSize: 12 }}>DHG</span>
-            </div>
-            <div style={{ fontFamily: 'var(--share)', fontSize: 7, color: 'rgba(179,255,179,0.3)', marginTop: 4 }}>SECTOR_4 ANALYTICS // RESOLVING</div>
+      <div className="grid grid-cols-2 gap-8 flex-1 z-10 mt-4">
+        {/* Debtors */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 border-b border-red-500/30 pb-2">
+            <h3 className="font-orbitron font-bold text-red-500 tracking-widest text-xs">TOP DEBTORS</h3>
+            <span className="text-[8px] font-share-tech text-red-500/50 uppercase">Liabilities</span>
           </div>
-        </>
-      )}
+          <div className="flex flex-col gap-4">
+            {top_debtors?.map((d, i) => (
+              <BarItem key={i} name={d.name} amount={d.amount} max={top_debtors[0]?.amount} color="var(--red)" />
+            ))}
+            {(!top_debtors || top_debtors.length === 0) && <div className="text-red-500/50 font-share-tech text-xs italic">NO DEBTORS DETECTED</div>}
+          </div>
+        </div>
 
-      {/* Main SVG Graph */}
-      <svg 
-        viewBox="0 0 500 200" 
-        preserveAspectRatio="none"
-        style={{ width: '100%', height: '100%', padding: '40px 0' }}
-      >
-        <defs>
-          <linearGradient id="grad-color" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--phosphor)" stopOpacity="0.4" />
-            <stop offset="100%" stopColor="var(--phosphor)" stopOpacity="0" />
-          </linearGradient>
-        </defs>
+        {/* Creditors */}
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2 border-b border-phosphor/30 pb-2">
+            <h3 className="font-orbitron font-bold text-phosphor tracking-widest text-xs">TOP CREDITORS</h3>
+            <span className="text-[8px] font-share-tech text-phosphor/50 uppercase">Assets</span>
+          </div>
+          <div className="flex flex-col gap-4">
+            {top_creditors?.map((c, i) => (
+              <BarItem key={i} name={c.name} amount={c.amount} max={top_creditors[0]?.amount} color="var(--phosphor)" />
+            ))}
+            {(!top_creditors || top_creditors.length === 0) && <div className="text-phosphor/50 font-share-tech text-xs italic">NO CREDITORS DETECTED</div>}
+          </div>
+        </div>
+      </div>
+      
+      {/* Resolution Vis */}
+      <div className="mt-6 border border-phosphor/20 bg-phosphor/5 p-4 z-10 shrink-0">
+         <div className="flex justify-between items-center">
+            <div className="font-share-tech text-phosphor text-[10px] tracking-widest uppercase">
+              Conflict Resolution Engine
+            </div>
+            <div className="font-orbitron text-neon-cyan font-bold text-[10px] animate-pulse">
+              SYSTEM OPTIMIZED
+            </div>
+         </div>
+         <div className="w-full h-1 bg-black mt-3 overflow-hidden rounded-full">
+            <motion.div 
+               initial={{ x: '-100%' }}
+               animate={{ x: '0%' }}
+               transition={{ duration: 1.5, ease: 'easeOut' }}
+               className="h-full bg-neon-cyan drop-shadow-[0_0_8px_rgba(0,245,255,0.8)]"
+            />
+         </div>
+      </div>
+    </div>
+  );
+};
 
-        {/* Grayscale Base Path (The "Future" or "Unsettled" path) */}
-        <path 
-          d={pathDef} 
-          fill="none" 
-          stroke="rgba(179,255,179,0.08)" 
-          strokeWidth="3" 
-          strokeLinecap="round" 
+const StatBox = ({ title, value, unit, color, highlight }) => (
+  <div className={`border ${highlight ? 'border-red-500 shadow-[0_0_10px_rgba(255,32,32,0.15)] bg-red-950/20' : 'border-phosphor/20 bg-black/40'} p-3 flex flex-col justify-center rounded-sm`}>
+    <div className="font-share-tech text-[8px] text-gray-400 tracking-widest uppercase mb-2">{title}</div>
+    <div className="font-orbitron font-bold text-lg drop-shadow-md" style={{ color }}>{value} <span className="text-[9px] font-light opacity-60 ml-1">{unit}</span></div>
+  </div>
+);
+
+const BarItem = ({ name, amount, max, color }) => {
+  const pct = max > 0 ? (amount / max) * 100 : 0;
+  return (
+    <div className="flex flex-col gap-2 relative">
+      <div className="flex justify-between font-share-tech text-[10px] uppercase tracking-wider relative z-10">
+        <span className="text-white truncate pr-4 font-bold">{name}</span>
+        <span style={{ color }} className="font-orbitron font-bold">{amount.toFixed(2)} HFG</span>
+      </div>
+      <div className="w-full h-1.5 bg-white/5 overflow-hidden rounded-full">
+        <motion.div 
+          initial={{ width: 0 }}
+          animate={{ width: `${pct}%` }}
+          transition={{ duration: 1, type: 'spring', bounce: 0.2 }}
+          className="h-full"
+          style={{ backgroundColor: color, boxShadow: `0 0 10px ${color}` }}
         />
-
-        {/* Colored Reveal Path (The "Resolved" or "Settled" path) */}
-        <path 
-          d={pathDef} 
-          fill="none" 
-          stroke="var(--phosphor)" 
-          strokeWidth="3" 
-          strokeLinecap="round" 
-          style={{ 
-            clipPath: `inset(0 ${100 - percent}% 0 0)`,
-            filter: 'drop-shadow(0 0 5px var(--phosphor))'
-          }} 
-        />
-
-        {/* Area fill */}
-        <path 
-          d={pathDef + " L 500 200 L 0 200 Z"} 
-          fill="url(#grad-color)" 
-          style={{ clipPath: `inset(0 ${100 - percent}% 0 0)` }} 
-        />
-      </svg>
-
-      {/* Axis Labels */}
-      <div className="graph-label" style={{ bottom: 10, left: 10 }}>T_0</div>
-      <div className="graph-label" style={{ bottom: 10, right: 10 }}>T_FINAL</div>
-      <div className="graph-label" style={{ top: 10, left: 10 }}>LOAD: 100%</div>
+      </div>
     </div>
   );
 };

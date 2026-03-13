@@ -5,15 +5,8 @@ import WalletPanel    from '../components/WalletPanel';
 import CSVUpload      from '../components/CSVUpload';
 import SettlementList from '../components/SettlementList';
 import AdvancedInteractiveGraph from '../components/AdvancedInteractiveGraph';
+import LedgerVision from '../components/LedgerVision';
 import XPTaskbar      from '../components/XPTaskbar';
-
-const WIN_DEFS = [
-  { id: 'upload',   icon: '📂', title: 'Ledger Upload', content: () => <CSVUpload /> },
-  { id: 'analytics',icon: '📊', title: 'Debt Analytics', content: () => <div style={{height:'100%'}}><AdvancedInteractiveGraph /></div> },
-  { id: 'wallet',   icon: '👛', title: 'Wallet Gateway', content: () => <WalletPanel /> },
-  { id: 'settle',   icon: '🧾', title: 'Settlement Queue', content: () => <SettlementList /> },
-  { id: 'cmd',      icon: '💻', title: 'Command Terminal', content: () => <TerminalConsole /> },
-];
 
 const DesktopIcon = ({ id, icon, label, onClick }) => (
   <motion.div 
@@ -35,6 +28,8 @@ const DesktopIcon = ({ id, icon, label, onClick }) => (
 );
 
 const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize, isMinimized }) => {
+  const [isMaximized, setIsMaximized] = useState(false);
+
   return (
     <motion.div
       layoutId={`win-${id}`}
@@ -46,20 +41,32 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
         x: -400, 
         y: 400,
         transition: { duration: 0.4 } 
+      } : isMaximized ? {
+        opacity: 1, 
+        scale: 1, 
+        x: 0, 
+        y: 0,
+        top: 0,
+        left: 0,
+        width: '100%',
+        height: '100%',
+        transition: { type: 'spring', damping: 20, stiffness: 200 }
       } : { 
         opacity: 1, 
         scale: 1, 
         x: 0, 
         y: 0,
+        top: '10%',
+        left: '15%',
+        width: 800,
+        height: 600,
         transition: { type: 'spring', damping: 20, stiffness: 200 }
       }}
       style={{
         position: 'absolute',
-        top: '10%', left: '15%',
-        width: 800, height: 600,
         background: '#0a0a12',
         border: '1px solid #ff2020',
-        borderRadius: '4px 4px 0 0',
+        borderRadius: isMaximized ? 0 : '4px 4px 0 0',
         zIndex,
         display: isMinimized ? 'none' : 'flex',
         flexDirection: 'column',
@@ -78,7 +85,7 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
         
         <div style={{ display: 'flex', gap: 6 }}>
           <button onClick={(e) => { e.stopPropagation(); onMinimize(); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 14, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>_</button>
-          <button style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 10, display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>□</button>
+          <button onClick={(e) => { e.stopPropagation(); setIsMaximized(!isMaximized); }} style={{ width: 22, height: 22, background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 2, color: '#fff', fontSize: 10, display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>□</button>
           <button onClick={(e) => { e.stopPropagation(); onClose(); }} style={{ width: 22, height: 22, background: '#ff2020', border: '1px solid #fff', borderRadius: 2, color: '#fff', fontSize: 12, fontWeight: 'bold', display:'flex', alignItems:'center', justifyContent:'center', cursor: 'pointer' }}>✕</button>
         </div>
       </div>
@@ -92,30 +99,61 @@ const XPWin = ({ id, title, icon, children, zIndex, onFocus, onClose, onMinimize
 };
 
 export default function Dashboard() {
-  const [openWins, setOpenWins] = useState(['analytics']);
+  const [resolvedData, setResolvedData] = useState(null);
+  const [openWins, setOpenWins] = useState([]);
   const [minimizedWins, setMinimizedWins] = useState([]);
-  const [zIndices, setZIndices] = useState({ analytics: 100 });
+  const [zIndices, setZIndices] = useState({});
   const [topZ, setTopZ] = useState(110);
+  
+  const [terminalLogs, setTerminalLogs] = useState([
+    { id: 1, text: ">>> HNL-OS KERNEL v4.3 BOOTED.", type: "system" },
+    { id: 2, text: ">>> SECURE GATEWAY ENCRYPTED. [SHA-256]", type: "system" },
+    { id: 3, text: ">>> AUTHENTICATED: AGENT_WHEELER", type: "success" },
+  ]);
+
+  const addTerminalLog = (text, type = 'info') => {
+    setTerminalLogs(prev => {
+      const newLogs = [...prev, { id: Date.now(), text: `>>> ${text}`, type }];
+      return newLogs.length > 50 ? newLogs.slice(1) : newLogs;
+    });
+  };
+
+  const handleUploadSuccess = (data) => {
+    setResolvedData(data);
+    addTerminalLog("UPLINK SUCCESSFUL. DECRYPTING DATASTREAM...", "success");
+    // Flow-wise execution: Open Ledger data first, then optimization results
+    setTimeout(() => openWin('ledger'), 500);
+    setTimeout(() => openWin('settle'), 1500);
+  };
+
+  const winDefs = [
+    { id: 'upload',   icon: '📂', title: 'Ledger Uplink', content: () => <CSVUpload onUploadSuccess={handleUploadSuccess} addLog={addTerminalLog} /> },
+    { id: 'ledger',   icon: '📜', title: 'Ledger Intelligence', content: () => <LedgerVision ledger={resolvedData?.ledger || []} /> },
+    { id: 'analytics',icon: '📊', title: 'Debt Analytics', content: () => <div style={{height:'100%'}}><AdvancedInteractiveGraph externalData={resolvedData} /></div> },
+    { id: 'wallet',   icon: '👛', title: 'Wallet Gateway', content: () => <WalletPanel /> },
+    { id: 'settle',   icon: '🧾', title: 'Settlement Queue', content: () => <SettlementList settlements={resolvedData?.settlements || []} stats={resolvedData?.stats} /> },
+    { id: 'cmd',      icon: '💻', title: 'Command Terminal', content: () => <TerminalConsole logs={terminalLogs} /> },
+  ];
 
   const openWin = (id) => {
     if (!openWins.includes(id)) {
-      setOpenWins([...openWins, id]);
+      setOpenWins(prev => [...prev, id]);
     }
-    setMinimizedWins(minimizedWins.filter(wid => wid !== id));
+    setMinimizedWins(prev => prev.filter(wid => wid !== id));
     focusWin(id);
   };
 
   const closeWin = (id) => {
-    setOpenWins(openWins.filter(wid => wid !== id));
-    setMinimizedWins(minimizedWins.filter(wid => wid !== id));
+    setOpenWins(prev => prev.filter(wid => wid !== id));
+    setMinimizedWins(prev => prev.filter(wid => wid !== id));
   };
 
   const minimizeWin = (id) => {
     if (minimizedWins.includes(id)) {
-      setMinimizedWins(minimizedWins.filter(wid => wid !== id));
+      setMinimizedWins(prev => prev.filter(wid => wid !== id));
       focusWin(id);
     } else {
-      setMinimizedWins([...minimizedWins, id]);
+      setMinimizedWins(prev => [...prev, id]);
     }
   };
 
@@ -137,7 +175,7 @@ export default function Dashboard() {
 
       {/* Desktop Icons */}
       <div style={{ position: 'absolute', top: 30, left: 30, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {WIN_DEFS.map(def => (
+        {winDefs.map(def => (
           <DesktopIcon 
             key={def.id} 
             icon={def.icon} 
@@ -151,7 +189,7 @@ export default function Dashboard() {
       <div style={{ position: 'relative', width: '100%', height: 'calc(100% - 32px)', pointerEvents: 'none' }}>
         <AnimatePresence>
           {openWins.map(id => {
-            const def = WIN_DEFS.find(d => d.id === id);
+            const def = winDefs.find(d => d.id === id);
             return (
               <XPWin
                 key={id}
@@ -173,9 +211,9 @@ export default function Dashboard() {
 
       {/* Taskbar */}
       <XPTaskbar 
-        allAppDefs={WIN_DEFS}
+        allAppDefs={winDefs}
         onOpenApp={openWin}
-        openWins={WIN_DEFS.filter(d => openWins.includes(d.id))}
+        openWins={winDefs.filter(d => openWins.includes(d.id))}
         minimizedWins={minimizedWins}
         onToggleWin={minimizeWin}
       />

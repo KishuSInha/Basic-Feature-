@@ -7,15 +7,6 @@ def _to_decimal(value: float) -> Decimal:
 
 
 def optimize_settlements(transactions: list) -> list:
-    """
-    Greedy min-transactions debt settlement algorithm.
-
-    1. Build net balance per person
-    2. Match largest debtor with largest creditor repeatedly
-    3. Settle as much as possible each step
-
-    Reduces N transactions down to at most N-1 settlements.
-    """
     balances = {}
 
     for payer, receiver, amount in transactions:

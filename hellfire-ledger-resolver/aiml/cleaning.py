@@ -69,111 +69,102 @@ def _build_canonical_names(names):
     return canonical_map
 
 
+from intelligence.schema_detector import SchemaDetector
+
 def load_and_clean_data(file_path):
-    """
-    Load any compatible CSV and clean it. Handles:
-      - Column name variants (from/to, payer/receiver, debtor/creditor)
-      - Dollar signs and commas in amounts ($20, $11.50, 1,000)
-      - Missing/NaN payer or receiver names
-      - Duplicate transactions
-      - Fuzzy name normalization (MIKE = mike = mik)
-      - Self-payments
-
-    Returns: (cleaned DataFrame, "amount")
-    """
+    """Load from CSV and then clean."""
     try:
-        df = pd.read_csv(file_path)
+        df = pd.read_csv(file_path, on_bad_lines='skip', engine='python')
     except FileNotFoundError:
-        raise FileNotFoundError(
-            f"CSV file not found: '{file_path}'\n"
-            f"Make sure the file exists in the correct folder."
-        )
+        raise FileNotFoundError(f"CSV file not found: '{file_path}'")
+    return clean_data_from_df(df)
 
-    # --- Auto-detect columns ---
-    payer_col    = _find_column(df.columns, PAYER_ALIASES)
-    receiver_col = _find_column(df.columns, RECEIVER_ALIASES)
-    amount_col   = _find_column(df.columns, AMOUNT_ALIASES)
 
-    missing = []
-    if not payer_col:
-        missing.append(f"payer column (tried: {PAYER_ALIASES})")
-    if not receiver_col:
-        missing.append(f"receiver column (tried: {RECEIVER_ALIASES})")
-    if not amount_col:
-        missing.append(f"amount column (tried: {AMOUNT_ALIASES})")
+def clean_data_from_df(df):
+    """
+    Clean an existing DataFrame using Intelligent Schema Detection.
+    Handles:
+      - Semantic column mapping (Payer, Receiver, Amount)
+      - Synthetic data generation for Personal/Retail datasets
+      - Missing/NaN names, currency cleaning, and fuzzy normalization.
+    """
+    # --- 1. Intelligent Schema Detection ---
+    detector = SchemaDetector()
+    schema = detector.infer_schema(df)
+    
+    # --- 2. Synthetic Data Injection ---
+    if schema["payer"] == "__SYNTHETIC_USER__":
+        df["payer"] = "Authorized_User"
+        payer_col = "payer"
+    else:
+        payer_col = schema["payer"]
 
-    if missing:
+    receiver_col = schema["receiver"]
+    amount_col = schema["amount"]
+
+    # Basic Validation
+    if not (payer_col and receiver_col and amount_col):
+        missing = []
+        if not payer_col: missing.append("Payer")
+        if not receiver_col: missing.append("Receiver/Merchant")
+        if not amount_col: missing.append("Amount")
         raise ValueError(
-            "CSV is missing required columns:\n"
-            + "\n".join(f"  - {m}" for m in missing)
-            + f"\n\nColumns found: {list(df.columns)}"
+            f"Schema Detection Failed. Missing: {', '.join(missing)}\n"
+            f"Detected: Payer->{payer_col}, Receiver->{receiver_col}, Amount->{amount_col}"
         )
 
+    print(f"[cleaning] Intelligent Mapping: {payer_col} → {receiver_col} (Value: {amount_col})")
+
+    # Standardize names for internal processing
     df = df.rename(columns={
         payer_col:    "payer",
         receiver_col: "receiver",
         amount_col:   "amount"
     })
 
-    # --- Drop rows with missing payer or receiver ---
+    # --- 3. Data Cleansing ---
+    # Drop rows with missing names
     before = len(df)
     df["payer"]    = df["payer"].apply(_safe_str)
     df["receiver"] = df["receiver"].apply(_safe_str)
     df = df.dropna(subset=["payer", "receiver"])
-    dropped_names = before - len(df)
-    if dropped_names:
-        print(f"[cleaning] Dropped {dropped_names} row(s) with missing payer/receiver.")
-
-    # --- Clean amounts: strip $, commas, spaces ---
+    
+    # Amount cleaning (strip $, commas, etc)
     df["amount"] = (
         df["amount"].astype(str)
         .str.replace(r"[\$,\s]", "", regex=True)
         .pipe(pd.to_numeric, errors="coerce")
     )
-    before = len(df)
     df = df.dropna(subset=["amount"])
     df = df[df["amount"] > 0]
-    dropped_amt = before - len(df)
-    if dropped_amt:
-        print(f"[cleaning] Dropped {dropped_amt} row(s) with invalid/zero amounts.")
 
-    # --- Remove exact duplicate transactions ---
-    before = len(df)
+    # Remove duplicates
     df = df.drop_duplicates(subset=["payer", "receiver", "amount"])
-    dupes = before - len(df)
-    if dupes:
-        print(f"[cleaning] Removed {dupes} duplicate transaction(s).")
 
-    # --- Fuzzy name normalization ---
-    all_names = [_safe_str(n) for n in list(df["payer"]) + list(df["receiver"])]
-    all_names = [n for n in all_names if n]
-    canonical_map = _build_canonical_names(all_names)
+    # --- 4. Fuzzy Name Normalization ---
+    # Merge "mike" and "Mike H." - skip if too many unique entities (performance guard)
+    all_names_raw = list(df["payer"]) + list(df["receiver"])
+    unique_names = list(set(n for n in all_names_raw if n))
+    
+    if len(unique_names) > 2500:
+        print(f"[cleaning] Large dataset detected ({len(unique_names)} entities). Skipping fuzzy normalization to maintain performance.")
+        # Just title case them as a basic cleanup
+        df["payer"]    = df["payer"].str.title()
+        df["receiver"] = df["receiver"].str.title()
+    else:
+        canonical_map = _build_canonical_names(unique_names)
+        def normalize(name):
+            s = _safe_str(name)
+            if not s: return "Unknown"
+            key = s.title()
+            return canonical_map.get(key, key)
+        
+        df["payer"]    = df["payer"].apply(normalize)
+        df["receiver"] = df["receiver"].apply(normalize)
 
-    def normalize(name):
-        s = _safe_str(name)
-        if not s:
-            return "Unknown"
-        key = s.title()
-        return canonical_map.get(key, key)
-
-    orig_payers    = df["payer"].tolist()
-    orig_receivers = df["receiver"].tolist()
-    df["payer"]    = df["payer"].apply(normalize)
-    df["receiver"] = df["receiver"].apply(normalize)
-
-    for orig, norm in zip(orig_payers, df["payer"].tolist()):
-        if str(orig).strip().title() != norm:
-            print(f"[cleaning] '{orig}' → '{norm}'")
-    for orig, norm in zip(orig_receivers, df["receiver"].tolist()):
-        if str(orig).strip().title() != norm:
-            print(f"[cleaning] '{orig}' → '{norm}'")
-
-    # --- Drop self-payments ---
-    self_pay = len(df[df["payer"] == df["receiver"]])
-    if self_pay:
-        print(f"[cleaning] Dropped {self_pay} self-payment row(s).")
-        df = df[df["payer"] != df["receiver"]]
-
+    # --- 5. Drop self-payments ---
+    df = df[df["payer"] != df["receiver"]]
+    
     df = df.reset_index(drop=True)
     print(f"[cleaning] Ready: {len(df)} valid transactions.")
     return df, "amount"

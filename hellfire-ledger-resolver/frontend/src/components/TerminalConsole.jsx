@@ -1,45 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 
 /* 
-  TerminalConsole — Lab Refinement
-  - Removed backdrop-blur for performance
-  - Optimized rendering loop
+  TerminalConsole — Controlled Version
+  - Accepts logs as props from parent (Dashboard)
+  - Maintains Hawkins Lab aesthetic
 */
 
-const TerminalConsole = () => {
-  const [logs, setLogs] = useState([
-    { id: 1, text: ">>> HNL-OS KERNEL v4.3 BOOTED.", type: "system" },
-    { id: 2, text: ">>> SECURE GATEWAY ENCRYPTED. [SHA-256]", type: "system" },
-    { id: 3, text: ">>> AUTHENTICATED: AGENT_WHEELER", type: "success" },
-    { id: 4, text: ">>> SCANNING SECTOR 4... INTERFERENCE DETECTED.", type: "warning" },
-  ]);
+const TerminalConsole = ({ logs = [] }) => {
   const consoleEndRef = useRef(null);
 
   useEffect(() => {
     consoleEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [logs]);
-
-  useEffect(() => {
-    const messages = [
-      { t: "ENCRYPTION KEY ROTATED.", c: "info" },
-      { t: "KLINE PATROL BYPASSED.", c: "success" },
-      { t: "DEMODOG SUPPLY LEDGER SYNCED.", c: "success" },
-      { t: "SIGNAL FLUCTUATION IN SECTOR 4.", c: "warning" },
-      { t: "MEMORY SCRUBBING IN PROGRESS...", c: "info" },
-      { t: "SEPOLIA NODE SYNCED.", c: "success" },
-      { t: "HELLFIRE CLUB INVENTORY COMPRESSED.", c: "system" },
-    ];
-    
-    const interval = setInterval(() => {
-      setLogs(prev => {
-        const msg = messages[Math.floor(Math.random() * messages.length)];
-        const newLogs = [...prev, { id: Date.now(), text: `>>> ${msg.t}`, type: msg.c }];
-        return newLogs.length > 20 ? newLogs.slice(1) : newLogs;
-      });
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, []);
 
   return (
     <div style={{ height: '100%', padding: 16, overflowY: 'auto', background: 'rgba(2,3,8,0.7)', position:'relative' }}>
@@ -53,7 +25,8 @@ const TerminalConsole = () => {
             fontFamily: 'var(--share)', fontSize: 11, lineHeight: 1.5,
             color: log.type === 'system' ? 'var(--cyan)' : 
                    log.type === 'success' ? 'var(--phosphor)' : 
-                   log.type === 'warning' ? 'var(--red)' : 'rgba(179,255,179,0.4)'
+                   log.type === 'warning' ? 'var(--red)' : 
+                   log.type === 'info' ? 'rgba(179,255,179,0.8)' : 'rgba(179,255,179,0.4)'
           }}>
             <span style={{ opacity: 0.3, marginRight: 8 }}>[{new Date(log.id).toLocaleTimeString([], { hour12: false })}]</span>
             {log.text}
@@ -70,7 +43,8 @@ const TerminalConsole = () => {
         position: 'absolute', top: 12, right: 12,
         background: 'var(--red)', color: '#fff',
         padding: '2px 8px', fontSize: 7, fontWeight: 900,
-        fontFamily: 'var(--share)', letterSpacing: '.2em', transform: 'rotate(2deg)'
+        fontFamily: 'var(--share)', letterSpacing: '.2em', transform: 'rotate(2deg)',
+        zIndex: 10
       }}>
         HAWKINS LAB
       </div>
