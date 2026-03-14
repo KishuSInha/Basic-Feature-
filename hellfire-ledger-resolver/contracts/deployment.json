@@ -1,0 +1,10 @@
+{
+  "contractAddress": "0x3b984c8e4105b4499d8312512ba0596aa22c2d7a",
+  "ownerAddress": "0xc0b1fec5b15d6f6b2681983655643ca23179ba29",
+  "network": "sepolia",
+  "chainId": 11155111,
+  "deployedAt": "2026-03-14T01:57:40.519Z",
+  "tokenName": "Hellfire Gold",
+  "tokenSymbol": "HFG",
+  "tokenDecimals": 18
+}

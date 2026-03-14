@@ -61,7 +61,28 @@ npm install
 npm run dev
 ```
 
-### 4. Integration
+### 4. Web3 Configuration
+Create a local env file before running the app:
+
+```bash
+cp .env.example .env
+```
+
+Supported variables:
+- `VITE_CONTRACT_ADDRESS` (required for custom deployments)
+- `VITE_OWNER_ADDRESS` (used for owner checks in the admin view)
+- `VITE_CHAIN_ID` (default: `11155111`)
+- `VITE_NETWORK_NAME` (default: `Sepolia`)
+- `VITE_TOKEN_NAME`
+- `VITE_TOKEN_SYMBOL`
+- `VITE_TOKEN_DECIMALS`
+- `VITE_WALLET_ADMIN` (wallet for Agent Munson)
+- `VITE_WALLET_AGENT` (wallet for Agent Wheeler)
+
+Important:
+- Set unique wallet addresses per member. The UI now warns if member wallets are missing or duplicated.
+
+### 5. Integration
 Ensure the **Hellfire AIML Backend** (Flask) is running on `http://127.0.0.1:5050` to enable full data resolution and token functions.
 
 ---

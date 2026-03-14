@@ -1,24 +1,39 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Send, Users, ShieldAlert, ArrowRightCircle, CheckCircle } from 'lucide-react';
+import { Send, Users, ArrowRightCircle, CheckCircle } from 'lucide-react';
+import { useWeb3 } from '../web3/Web3Provider.jsx';
 
 const TokenSend = ({ addLog }) => {
+  const { isConnected, isSepolia, networkName, members, areMemberWalletsUnique, memberWalletIssues, connectWallet, transferTokens } = useWeb3();
   const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState(0);
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSend = () => {
+  const handleSend = async () => {
+    if (!isConnected) {
+      await connectWallet();
+      return;
+    }
+
     if (!recipient || amount <= 0) return;
     setSending(true);
+    setError('');
     if (addLog) addLog(`INITIATING TOKEN TRANSFER: ${amount} HFG -> ${recipient}`, 'system');
-    
-    setTimeout(() => {
+
+    try {
+      const txHash = await transferTokens(recipient, amount);
       setSending(false);
       setSuccess(true);
-      if (addLog) addLog(`TRANSFER COMPLETE. TRANSACTION HASH: 0x${Math.random().toString(16).slice(2)}`, 'success');
+      if (addLog) addLog(`TRANSFER COMPLETE. TRANSACTION HASH: ${txHash}`, 'success');
       setTimeout(() => setSuccess(false), 3000);
-    }, 2000);
+    } catch (err) {
+      setSending(false);
+      const message = err?.reason || err?.shortMessage || err?.message || 'Transfer failed.';
+      setError(message);
+      if (addLog) addLog(`TRANSFER FAILED: ${message}`, 'error');
+    }
   };
 
   return (
@@ -32,6 +47,19 @@ const TokenSend = ({ addLog }) => {
         {/* Recipient Input */}
         <div className="flex flex-col gap-2">
           <label className="font-share-tech text-[10px] text-zinc-500 uppercase tracking-widest">Recipient Identity / Address</label>
+          <div className="grid grid-cols-1 gap-2">
+            {members.map((member) => (
+              <button
+                key={member.id}
+                onClick={() => setRecipient(member.walletAddress || '')}
+                disabled={!member.walletAddress}
+                className="p-2 border border-zinc-800 text-left text-zinc-300 hover:border-zinc-600 disabled:opacity-40"
+              >
+                <div className="font-orbitron text-[10px] uppercase">{member.name}</div>
+                <div className="font-share-tech text-[8px] opacity-70">{member.walletAddress ? `${member.walletAddress.slice(0, 8)}...${member.walletAddress.slice(-6)}` : 'Wallet not configured'}</div>
+              </button>
+            ))}
+          </div>
           <div className="relative">
             <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-600" />
             <input 
@@ -59,7 +87,7 @@ const TokenSend = ({ addLog }) => {
       <div className="mt-auto">
         <button
           onClick={handleSend}
-          disabled={sending || !recipient || amount <= 0}
+          disabled={sending || !recipient || amount <= 0 || (isConnected && !isSepolia)}
           style={{ 
             width: '100%', padding: '20px', 
             background: 'linear-gradient(to right, #003366, #00f3ff)', 
@@ -75,9 +103,27 @@ const TokenSend = ({ addLog }) => {
             <ArrowRightCircle className="w-5 h-5" />
           )}
           <span className="font-orbitron font-bold text-xs uppercase tracking-[0.2em]">
-            {sending ? 'Executing Transfer...' : success ? 'Transfer Confirmed' : 'Authorize Send'}
+            {!isConnected ? 'Connect Wallet First' : sending ? 'Executing Transfer...' : success ? 'Transfer Confirmed' : 'Authorize Send'}
           </span>
         </button>
+
+        {!isSepolia && isConnected && (
+          <div className="mt-3 font-share-tech text-[9px] uppercase tracking-widest text-red-400">
+            {`Wrong network selected. Switch wallet to ${networkName}.`}
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 font-share-tech text-[9px] text-red-300">
+            {error}
+          </div>
+        )}
+
+        {!areMemberWalletsUnique && (
+          <div className="mt-3 font-share-tech text-[9px] text-red-300">
+            {memberWalletIssues[0]}
+          </div>
+        )}
       </div>
 
       <AnimatePresence>

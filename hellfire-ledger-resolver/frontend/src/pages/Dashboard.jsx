@@ -170,12 +170,13 @@ export default function Dashboard({ userRole }) {
   const winDefs = userRole === 'admin' ? [
     { id: 'mint',    icon: '🪙', title: 'Token Minting',  content: () => <AdminControl userRole={userRole} addLog={addTerminalLog} /> },
     { id: 'send',    icon: '📤', title: 'Token Sending',  content: () => <TokenSend addLog={addTerminalLog} /> },
+    { id: 'wallet',  icon: '👛', title: 'Wallet Gateway', content: () => <WalletPanel addLog={addTerminalLog} /> },
     { id: 'cmd',     icon: '💻', title: 'Terminal',   content: () => <TerminalConsole logs={terminalLogs} /> },
   ] : [
     { id: 'upload',   icon: '📂', title: 'Ledger Uplink', content: () => <CSVUpload onUploadSuccess={handleUploadSuccess} addLog={addTerminalLog} /> },
     { id: 'ledger',   icon: '📜', title: 'Ledger Intelligence', content: () => <LedgerVision ledger={resolvedData?.ledger || []} /> },
     { id: 'analytics',icon: '📊', title: 'Debt Analytics', content: () => <div style={{height:'100%'}}><AdvancedInteractiveGraph externalData={resolvedData} /></div> },
-    { id: 'wallet',   icon: '👛', title: 'Wallet Gateway', content: () => <WalletPanel /> },
+    { id: 'wallet',   icon: '👛', title: 'Wallet Gateway', content: () => <WalletPanel addLog={addTerminalLog} /> },
     { id: 'settle',   icon: '🧾', title: 'Settlement Queue', content: () => <SettlementList settlements={resolvedData?.settlements || []} stats={resolvedData?.stats} /> },
     { id: 'cmd',      icon: '💻', title: 'Command Terminal', content: () => <TerminalConsole logs={terminalLogs} /> },
   ];

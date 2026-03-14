@@ -1,0 +1,22 @@
+from,to,amt,curr,date
+Raj,Anjali,350,INR,2024-01-10
+ANJALI,raj,350,inr,10/01/2024
+raj,anjali,350,rupees,2024-01-10
+Raj,PREETHI,500,INR,2024-01-11
+preethi,Raj,500,rupees,11-01-2024
+Kevin,raj,200,inr,2024/01/12
+KEVIN,Preethi,150,INR,Jan 12 2024
+anjali,KEVIN,75,inr,2024-01-12
+Raaj,preethi,100,INR,2024-01-13
+kevin,Raaj,80,INR,13th jan 2024
+Anjali,Preethi,200,INR,2024-01-14
+preethi,ANJALI,200,INR,14/01/2024
+Raj,Kevin,-100,INR,2024-01-15
+preethi,raj,500,USD,2024-01-15
+anjali,raj,250,dollars,2024-01-16
+KEVIN,,90,INR,2024-01-16
+Raj,Preethi,notanumber,INR,2024-01-17
+anjali,kevin,75,INR,2024-01-17
+Preethi,KEVIN,75,INR,17-01-2024
+kevin,anjali,40,INR,2024-01-18
+ANJALI,kevin,40,inr,18 Jan 2024

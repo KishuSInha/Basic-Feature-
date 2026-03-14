@@ -28,13 +28,6 @@ yarn-error.log*
 package-lock.json
 
 # -------------------------
-# Environment variables
-# -------------------------
-.env
-.env.local
-.env.*.local
-
-# -------------------------
 # Logs
 # -------------------------
 logs/
@@ -61,3 +54,28 @@ Thumbs.db
 
 # If you want to keep a sample dataset:
 !sample*.csv
+
+# Environment variables - NEVER commit these
+.env
+.env.local
+.env.development
+.env.production
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/node_modules/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/__pycache__/
+backend/*.pyc
+backend/venv/
+backend/.venv/
+
+# Deployment info (contains contract address - optional to ignore)
+contracts/deployment.json

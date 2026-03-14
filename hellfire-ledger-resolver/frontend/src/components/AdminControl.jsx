@@ -1,23 +1,43 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Coins, UserPlus, ShieldPlus, Zap, CheckCircle } from 'lucide-react';
+import { Coins, ShieldPlus, Zap, CheckCircle } from 'lucide-react';
+import { useWeb3 } from '../web3/Web3Provider.jsx';
 
 const AdminControl = ({ addLog }) => {
-  const [targetUser, setTargetUser] = useState('agent'); // 'admin' or 'agent'
+  const { isConnected, isSepolia, networkName, members, areMemberWalletsUnique, memberWalletIssues, isOwner, address, connectWallet, mintTokens } = useWeb3();
+  const [recipient, setRecipient] = useState('');
   const [amount, setAmount] = useState(100);
   const [minting, setMinting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleMint = () => {
+  const handleMint = async () => {
+    if (!isConnected) {
+      await connectWallet();
+      return;
+    }
+
+    if (!recipient) {
+      setError('Recipient address is required.');
+      return;
+    }
+
     setMinting(true);
-    if (addLog) addLog(`INITIATING TOKEN MINTING: ${amount} HFG -> ${targetUser.toUpperCase()}`, 'system');
-    
-    setTimeout(() => {
+    setError('');
+    if (addLog) addLog(`INITIATING TOKEN MINTING: ${amount} HFG -> ${recipient}`, 'system');
+
+    try {
+      const txHash = await mintTokens(recipient, amount);
       setMinting(false);
       setSuccess(true);
-      if (addLog) addLog(`MINTING SUCCESSFUL. AGENT LEDGER UPDATED.`, 'success');
+      if (addLog) addLog(`MINTING SUCCESSFUL. TX: ${txHash}`, 'success');
       setTimeout(() => setSuccess(false), 3000);
-    }, 2000);
+    } catch (err) {
+      setMinting(false);
+      const message = err?.reason || err?.shortMessage || err?.message || 'Mint transaction failed.';
+      setError(message);
+      if (addLog) addLog(`MINTING FAILED: ${message}`, 'error');
+    }
   };
 
   return (
@@ -28,27 +48,35 @@ const AdminControl = ({ addLog }) => {
       </div>
 
       <div className="grid grid-cols-2 gap-6">
-        {/* User Selection */}
         <div className="flex flex-col gap-4">
-          <label className="font-share-tech text-[10px] text-zinc-500 uppercase tracking-widest">Select Personnel</label>
+          <label className="font-share-tech text-[10px] text-zinc-500 uppercase tracking-widest">Recipient Address</label>
           <div className="flex flex-col gap-2">
-            {[
-              { id: 'admin', name: 'Agent Munson', role: 'Administrator' },
-              { id: 'agent', name: 'Agent Wheeler', role: 'Field Agent' }
-            ].map((u) => (
-              <button
-                key={u.id}
-                onClick={() => setTargetUser(u.id)}
-                className={`p-4 border text-left transition-all ${
-                  targetUser === u.id 
-                  ? 'border-red-500 bg-red-500/10 text-white' 
-                  : 'border-zinc-800 bg-white/5 text-zinc-500 hover:border-zinc-700'
-                }`}
-              >
-                <p className="font-orbitron text-[10px] font-bold">{u.name}</p>
-                <p className="font-share-tech text-[8px] uppercase mt-1 opacity-60">{u.role}</p>
-              </button>
-            ))}
+            <div className="grid grid-cols-1 gap-2">
+              {members.map((member) => (
+                <button
+                  key={member.id}
+                  onClick={() => setRecipient(member.walletAddress || '')}
+                  disabled={!member.walletAddress}
+                  className="p-2 border border-zinc-800 text-left text-zinc-300 hover:border-zinc-600 disabled:opacity-40"
+                >
+                  <div className="font-orbitron text-[10px] uppercase">{member.name}</div>
+                  <div className="font-share-tech text-[8px] opacity-70">{member.walletAddress ? `${member.walletAddress.slice(0, 8)}...${member.walletAddress.slice(-6)}` : 'Wallet not configured'}</div>
+                </button>
+              ))}
+            </div>
+            <input
+              type="text"
+              placeholder="0x..."
+              value={recipient}
+              onChange={(e) => setRecipient(e.target.value.trim())}
+              className="w-full bg-black border border-zinc-800 p-4 font-share-tech text-red-400 text-sm outline-none focus:border-red-500 transition-all"
+            />
+            <button
+              onClick={() => setRecipient(address)}
+              className="py-2 border border-zinc-800 text-[10px] font-orbitron text-zinc-400 hover:text-white hover:border-zinc-600 transition-all"
+            >
+              Use Connected Wallet
+            </button>
           </div>
         </div>
 
@@ -79,7 +107,7 @@ const AdminControl = ({ addLog }) => {
       <div className="mt-auto">
         <button
           onClick={handleMint}
-          disabled={minting}
+          disabled={minting || !isOwner || !isSepolia || amount <= 0}
           style={{ width: '100%', padding: '20px', background: 'linear-gradient(to right, #8b0000, #ff2020)', color: '#fff', border: 'none', borderRadius: 2, cursor: 'pointer', transition: 'all 0.3s' }}
           className="hover:brightness-125 disabled:grayscale flex items-center justify-center gap-3"
         >
@@ -91,9 +119,33 @@ const AdminControl = ({ addLog }) => {
             <Coins className="w-5 h-5" />
           )}
           <span className="font-orbitron font-bold text-xs uppercase tracking-[0.2em]">
-            {minting ? 'Processing Allotment...' : success ? 'Allotment Confirmed' : 'Confirm Token Minting'}
+            {!isConnected ? 'Connect Wallet First' : minting ? 'Processing Allotment...' : success ? 'Allotment Confirmed' : 'Confirm Token Minting'}
           </span>
         </button>
+
+        {!isOwner && isConnected && (
+          <div className="mt-3 font-share-tech text-[9px] uppercase tracking-widest text-red-400">
+            Connected wallet is not contract owner. Mint is owner-only.
+          </div>
+        )}
+
+        {!isSepolia && isConnected && (
+          <div className="mt-3 font-share-tech text-[9px] uppercase tracking-widest text-red-400">
+            {`Wrong network selected. Switch wallet to ${networkName}.`}
+          </div>
+        )}
+
+        {error && (
+          <div className="mt-3 font-share-tech text-[9px] text-red-300">
+            {error}
+          </div>
+        )}
+
+        {!areMemberWalletsUnique && (
+          <div className="mt-3 font-share-tech text-[9px] text-red-300">
+            {memberWalletIssues[0]}
+          </div>
+        )}
         
         <div className="mt-4 flex items-center gap-3 opacity-40">
            <Zap className="w-3 h-3 text-amber-500" />
