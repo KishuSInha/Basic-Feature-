@@ -9,6 +9,7 @@ import Dashboard      from './pages/Dashboard.jsx';
 import WindowsLoading from './components/WindowsLoading.jsx';
 import WindowsLogin   from './components/WindowsLogin.jsx';
 import WindowsWelcome from './components/WindowsWelcome.jsx';
+import { sfx }        from './services/soundManager';
 
 const PAGE = {
   LAND:        'land',
@@ -22,9 +23,18 @@ export default function App() {
   const [page, setPage] = useState(PAGE.LAND);
   const [userRole, setUserRole] = useState(null); // 'admin' or 'agent'
 
-  const startBoot         = () => { window.scrollTo(0, 0); setPage(PAGE.XP_LOADING); };
+  const startBoot         = () => { 
+    sfx.unlock();
+    window.scrollTo(0, 0); 
+    setPage(PAGE.XP_LOADING); 
+  };
   const onLoadingComplete = () => setPage(PAGE.XP_LOGIN);
-  const onLogin           = (role) => { setUserRole(role); setPage(PAGE.XP_WELCOME); };
+  const onLogin           = (role) => { 
+    sfx.unlock();
+    sfx.play('portal');
+    setUserRole(role); 
+    setPage(PAGE.XP_WELCOME); 
+  };
   const onWelcomeComplete = () => setPage(PAGE.DASH);
   const onRestart         = () => { setUserRole(null); setPage(PAGE.LAND); };
 

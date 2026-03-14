@@ -9,6 +9,8 @@ import LedgerVision from '../components/LedgerVision';
 import AdminControl from '../components/AdminControl';
 import TokenSend    from '../components/TokenSend';
 import XPTaskbar      from '../components/XPTaskbar';
+import { sfx }        from '../services/soundManager';
+import { useEffect } from 'react';
 
 const DesktopIcon = ({ id, icon, label, onClick }) => (
   <motion.div 
@@ -144,6 +146,11 @@ export default function Dashboard({ userRole }) {
     { id: 3, text: `>>> AUTHENTICATED: ${userRole === 'admin' ? 'AGENT_MUNSON' : 'AGENT_WHEELER'} [${userRole?.toUpperCase()}]`, type: "success" },
   ]);
 
+  useEffect(() => {
+    sfx.toggleAmbient(true);
+    return () => sfx.toggleAmbient(false);
+  }, []);
+
   const addTerminalLog = (text, type = 'info') => {
     setTerminalLogs(prev => {
       const newLogs = [...prev, { id: Date.now(), text: `>>> ${text}`, type }];
@@ -154,6 +161,7 @@ export default function Dashboard({ userRole }) {
   const handleUploadSuccess = (data) => {
     setResolvedData(data);
     addTerminalLog("UPLINK SUCCESSFUL. DECRYPTING DATASTREAM...", "success");
+    sfx.play('upload');
     setTimeout(() => openWin('ledger'), 500);
     setTimeout(() => openWin('settle'), 1500);
   };
@@ -175,6 +183,7 @@ export default function Dashboard({ userRole }) {
   const openWin = (id) => {
     if (!openWins.includes(id)) {
       setOpenWins(prev => [...prev, id]);
+      sfx.play('open');
     }
     setMinimizedWins(prev => prev.filter(wid => wid !== id));
     focusWin(id);
@@ -183,6 +192,7 @@ export default function Dashboard({ userRole }) {
   const closeWin = (id) => {
     setOpenWins(prev => prev.filter(wid => wid !== id));
     setMinimizedWins(prev => prev.filter(wid => wid !== id));
+    sfx.play('close');
   };
 
   const minimizeWin = (id) => {

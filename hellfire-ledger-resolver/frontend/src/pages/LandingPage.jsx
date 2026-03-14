@@ -65,6 +65,8 @@ const VideoBg = () => (
   </div>
 );
 
+import { sfx } from '../services/soundManager';
+
 export default function LandingPage({ onEnter, onAccessPortal }) {
   const [lines, setLines] = useState([]);
   const [showCTA, setShowCTA] = useState(false);
@@ -92,6 +94,7 @@ export default function LandingPage({ onEnter, onAccessPortal }) {
   }, []);
 
   const handlePortalAccess = () => {
+    sfx.unlock();
     setIsPortaling(true);
     setTimeout(() => {
       onAccessPortal();

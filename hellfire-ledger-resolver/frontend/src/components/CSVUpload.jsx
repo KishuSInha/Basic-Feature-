@@ -2,6 +2,7 @@ import React, { useCallback, useState, useRef, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Database, HardDrive, FileText, XCircle } from 'lucide-react';
 import { resolveLedger } from '../services/api';
+import { sfx } from '../services/soundManager';
 
 /* 
   CSVUpload — Enhanced UI/UX
@@ -62,6 +63,7 @@ const CSVUpload = ({ onUploadSuccess, addLog }) => {
     if (!acceptedFiles.length) return;
     
     setStatus('uploading');
+    sfx.play('upload');
     setErrorMsg('');
     setProgress(0);
     abortControllerRef.current = new AbortController();
@@ -81,6 +83,7 @@ const CSVUpload = ({ onUploadSuccess, addLog }) => {
     } catch (err) {
         if (err.name === 'AbortError') return;
         setStatus('error');
+        sfx.play('error');
         setErrorMsg(err.message);
         if (addLog) addLog(`UPLINK FAILED: ${err.message.toUpperCase()}`, "warning");
     } finally {
